@@ -1306,6 +1306,35 @@ impl Evaluable for PossiblyBad {
         state: interpreter::State,
     ) -> Result<interpreter::State, interpreter::Error> {
         match self {
+            #[cfg(feature = "experimental-wots")]
+            Self::Bad(Bad::Unknown(0xba)) if flags.contains(interpreter::Flags::CHECKWOTS) => {
+                let mut state = state;
+                state.increment_op_count(1)?;
+                if !interpreter::should_exec(&state.vexec) {
+                    return Ok(state);
+                }
+                let commitment = state.stack.pop()?;
+                if commitment.len() != 32 {
+                    return Err(interpreter::Error::Verify);
+                }
+                // Fixed arrays and chunk lengths bound work before the signature callback.
+                let mut public_key = [0u8; 2176];
+                let mut signature = [0u8; 2144];
+                for bytes in [&mut public_key[..], &mut signature[..]] {
+                    for index in (0..5).rev() {
+                        let chunk = state.stack.pop()?;
+                        let start = index * 512;
+                        let end = core::cmp::min(start + 512, bytes.len());
+                        if chunk.len() != end - start {
+                            return Err(interpreter::Error::Verify);
+                        }
+                        bytes[start..end].copy_from_slice(&chunk);
+                    }
+                }
+                let valid = checker.check_wots(&signature, &public_key, &commitment);
+                state.stack.push(if valid { vec![1] } else { vec![] });
+                Ok(state)
+            }
             Self::Bad(bad) => bad.eval(state),
             Self::Good(opcode) => opcode.eval(flags, script, checker, state),
         }
@@ -1556,3 +1585,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "experimental-wots"))]
+mod wots_tests;

@@ -178,11 +178,21 @@ bitflags::bitflags! {
         ///
         /// See [BIP65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) for details.
         const CHECKLOCKTIMEVERIFY = 1 << 9;
+
+        /// Enable the experimental regtest WOTS opcode.
+        #[cfg(feature = "experimental-wots")]
+        const CHECKWOTS = 1 << 10;
     }
 }
 
 /// This verifies that a signature is correct for the given pubkey and script code.
 pub trait SignatureChecker {
+    /// Check an experimental WOTS authorization against its key commitment.
+    #[cfg(feature = "experimental-wots")]
+    fn check_wots(&self, _signature: &[u8], _public_key: &[u8], _commitment: &[u8]) -> bool {
+        false
+    }
+
     /// Check that the signature is valid.
     fn check_sig(
         &self,
