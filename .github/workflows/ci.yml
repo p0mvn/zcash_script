@@ -7,6 +7,13 @@ on:
   pull_request:
 
 jobs:
+  experimental-wots:
+    name: WOTS interpreter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: cargo test -p zcash_script --features experimental-wots --locked
+
   check:
     name: Check
     runs-on: ubuntu-latest

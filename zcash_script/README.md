@@ -56,3 +56,22 @@ publishing fixes that apply to both lines.
    ```bash
    cargo release publish --verbose --execute -p zcash_script
    ```
+
+## Experimental WOTS callback
+
+This fork adds an `experimental-wots` feature for the disposable-key Zakura
+regtest demo. It is off by default. Execution additionally requires the caller
+to set `Flags::CHECKWOTS` and implement `SignatureChecker::check_wots`; the
+default callback rejects every authorization.
+
+Opcode `0xba` consumes a 32-byte key commitment, a 32-byte public seed, and
+five signature chunks: four of 512 bytes and one of 96 bytes. The caller
+reconstructs the full key from the signature, seed, and transaction digest,
+then authenticates its canonical encoding against the commitment. The
+interpreter does not implement the cryptographic primitive or wallet key state.
+
+The demo uses a WOTS-only P2SH redeem script, `<32-byte key commitment> 0xba`.
+An ordinary EC output remains a separate output type; this template has no EC
+fallback or branch selector. The signature chunks are pushed first, followed by
+the public seed and the redeem script. P2SH executes that redeem script,
+which pushes the commitment before calling the opcode.
